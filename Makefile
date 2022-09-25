@@ -4,6 +4,10 @@ CFLAGS := -g
 SRC = src/jit.c
 OBJ=$(SRC:.c=.o)
 
+ifeq (debug,1)
+CFLAGS+=-D'PRINT_OUT_CMD'
+endif
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 

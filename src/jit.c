@@ -21,11 +21,19 @@
         }                                                              \
     } while (0)
 
+#ifdef PRINT_OUT_CMD
 #define jit_c_system(string)            \
     do {                                \
         printf("[JIT-C] %s\n", string); \
         system(string);                 \
     } while (0)
+#else
+#define jit_c_system(string)            \
+    do {                                \
+        printf("[JIT-C] %s\n", string); \
+        system(string);                 \
+    } while (0)
+#endif /* PRINT_OUT_CMD */
 
 #define BLOCK_MAX_SIZE 4096
 #define LINE_MAX_SIZE 256

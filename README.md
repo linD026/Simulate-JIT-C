@@ -40,3 +40,11 @@ get: 0
 ```
 
 After finishing your program, enter "quit" to exit.
+
+## Debugging
+
+Add "debug=1" to the make command then it will print out all the system command during executing the program.
+
+```
+make debug=1
+```
