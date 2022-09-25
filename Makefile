@@ -13,3 +13,6 @@ all: $(OBJ)
 clean:
 	rm -f src/*.o
 	rm -f jit-c
+
+indent:
+	clang-format -i src/*.[ch]

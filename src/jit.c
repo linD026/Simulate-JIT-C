@@ -92,14 +92,14 @@ static void delete_files(struct code_block *block)
 static void free_all_files(void)
 {
     struct code_block *next, *current;
-    char cmd[CMD_MAX_SIZE] = {0};
+    char cmd[CMD_MAX_SIZE] = { 0 };
 
     for (next = current = jit_data.block; next; current = next) {
         delete_files(current);
         next = current->next;
         free(current);
     }
-    
+
     delete_files(jit_data.main);
     free(jit_data.main);
     sprintf(cmd, "rm -f %s", EXEC_FILE);
