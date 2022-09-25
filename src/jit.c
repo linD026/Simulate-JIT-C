@@ -31,6 +31,11 @@
 #define NAME_MAX_SIZE 64
 #define CMD_MAX_SIZE 128
 
+#define TERMINAL_CMD "//0\n"
+#define QUIT_CMD "quit\n"
+
+#define EXEC_FILE "generated-jit-c"
+
 struct code_block {
     char name[NAME_MAX_SIZE];
     struct code_block *next;
@@ -91,10 +96,8 @@ static void free_all_files(void)
         next = current->next;
         free(current);
     }
+    free(EXEC_FILE);
 }
-
-#define TERMINAL_CMD "//0\n"
-#define QUIT_CMD "quit\n"
 
 static struct code_block *read_block(void)
 {
@@ -109,8 +112,8 @@ static struct code_block *read_block(void)
         line[LINE_MAX_SIZE - 1] = '\0';
         if (strncmp(QUIT_CMD, line, sizeof(QUIT_CMD)) == 0)
             return NULL;
-        offset += strlen(line);
         strncpy(block_buffer + offset, line, LINE_MAX_SIZE);
+        offset += strlen(line);
         WARN_ON(offset >= BLOCK_MAX_SIZE, "read overflow");
     } while (!(strncmp(TERMINAL_CMD, line, sizeof(TERMINAL_CMD)) == 0));
 
@@ -126,8 +129,6 @@ static struct code_block *read_block(void)
     return block;
 }
 
-#define EXEC_FILE "generated-jit-c"
-
 static void jit_exec(void)
 {
     char cmd[BLOCK_MAX_SIZE] = { 0 };
@@ -138,6 +139,8 @@ static void jit_exec(void)
          current = current->next) {
         offset += sprintf(cmd + offset, "%s.o ", current->name);
     }
+    jit_c_system(cmd);
+    sprintf(cmd, "./%s", EXEC_FILE);
     jit_c_system(cmd);
 }
 
