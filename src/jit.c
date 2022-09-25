@@ -107,11 +107,12 @@ static void free_all_files(void)
         next = current->next;
         free(current);
     }
-
-    delete_files(jit_data.main);
-    free(jit_data.main);
-    sprintf(cmd, "rm -f %s", EXEC_FILE);
-    jit_c_system(cmd);
+    if (jit_data.main) {
+        delete_files(jit_data.main);
+        free(jit_data.main);
+        sprintf(cmd, "rm -f %s", EXEC_FILE);
+        jit_c_system(cmd);
+    }
 }
 
 static struct code_block *read_block(void)
