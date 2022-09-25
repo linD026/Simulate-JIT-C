@@ -59,7 +59,7 @@ static struct jit_data jit_data;
 
 static char block_buffer[BLOCK_MAX_SIZE];
 
-static void create_block(struct code_block *block)
+static void create_files(struct code_block *block)
 {
     char name[NAME_MAX_SIZE + 2] = { 0 };
     char cmd[CMD_MAX_SIZE] = { 0 };
@@ -178,7 +178,7 @@ int main(void)
         struct code_block *block = read_block();
         if (!block)
             break;
-        create_block(block);
+        create_files(block);
         printf("----------\n");
         if (jit_data.main) {
             jit_exec();
