@@ -38,3 +38,5 @@ When you write the main function, it will auto execute the program.
 get: 0
 ----------
 ```
+
+After finishing your program, enter "quit" to exit.
