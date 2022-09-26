@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <assert.h>
 
 #define BUG_ON(cond, fmt)                                              \
     do {                                                               \
@@ -23,16 +22,12 @@
 
 #ifdef PRINT_OUT_CMD
 #define jit_c_system(string)            \
-    do {                                \
+    ({                                  \
         printf("[JIT-C] %s\n", string); \
         system(string);                 \
-    } while (0)
+    })
 #else
-#define jit_c_system(string)            \
-    do {                                \
-        printf("[JIT-C] %s\n", string); \
-        system(string);                 \
-    } while (0)
+#define jit_c_system(string) system(string)
 #endif /* PRINT_OUT_CMD */
 
 #define BLOCK_MAX_SIZE 4096
@@ -59,10 +54,22 @@ static struct jit_data jit_data;
 
 static char block_buffer[BLOCK_MAX_SIZE];
 
-static void create_files(struct code_block *block)
+static void delete_files(struct code_block *block)
+{
+    char cmd[CMD_MAX_SIZE] = { 0 };
+
+    BUG_ON(!block, "block == NULL");
+    sprintf(cmd, "rm -f %s.c", block->name);
+    jit_c_system(cmd);
+    sprintf(cmd, "rm -f %s.o", block->name);
+    jit_c_system(cmd);
+}
+
+static void create_files(struct code_block *block, int is_main)
 {
     char name[NAME_MAX_SIZE + 2] = { 0 };
     char cmd[CMD_MAX_SIZE] = { 0 };
+    struct code_block *tmp;
     FILE *file;
     int ret;
 
@@ -80,21 +87,16 @@ static void create_files(struct code_block *block)
     fclose(file);
 
     sprintf(cmd, "gcc -c %s", name);
-    jit_c_system(cmd);
-}
-
-static void delete_files(struct code_block *block)
-{
-    char name[NAME_MAX_SIZE + 2] = { 0 };
-    char cmd[CMD_MAX_SIZE] = { 0 };
-
-    BUG_ON(!block, "block == NULL");
-    sprintf(name, "%s.c", block->name);
-    sprintf(cmd, "rm -f %s", name);
-    jit_c_system(cmd);
-    sprintf(name, "%s.o", block->name);
-    sprintf(cmd, "rm -f %s", name);
-    jit_c_system(cmd);
+    ret = jit_c_system(cmd);
+    if (ret != 0) {
+        sprintf(cmd, "rm -f %s", name);
+        jit_c_system(cmd);
+        free(block);
+    } else if (!is_main) {
+        tmp = jit_data.block;
+        jit_data.block = block;
+        block->next = tmp;
+    }
 }
 
 static void free_all_files(void)
@@ -115,12 +117,11 @@ static void free_all_files(void)
     }
 }
 
-static struct code_block *read_block(void)
+static struct code_block *read_block(int *is_main)
 {
     char line[LINE_MAX_SIZE] = { 0 };
-    struct code_block *tmp, *block = NULL;
+    struct code_block *block = NULL;
     size_t offset = 0;
-    bool has_main = false;
 
     do {
         printf("> ");
@@ -130,7 +131,7 @@ static struct code_block *read_block(void)
         if (strncmp(QUIT_CMD, line, sizeof(QUIT_CMD)) == 0)
             return NULL;
         if (strstr(line, "main") != NULL)
-            has_main = true;
+            *is_main = 1;
         strncpy(block_buffer + offset, line, LINE_MAX_SIZE);
         offset += strlen(line);
         WARN_ON(offset >= BLOCK_MAX_SIZE, "read overflow");
@@ -141,16 +142,12 @@ static struct code_block *read_block(void)
     block->next = NULL;
     jit_data.count++;
 
-    if (has_main) {
+    if (*is_main) {
         if (jit_data.main) {
             delete_files(jit_data.main);
             free(jit_data.main);
         }
         jit_data.main = block;
-    } else {
-        tmp = jit_data.block;
-        jit_data.block = block;
-        block->next = tmp;
     }
 
     return block;
@@ -176,10 +173,11 @@ static void jit_exec(void)
 int main(void)
 {
     for (;;) {
-        struct code_block *block = read_block();
+        int is_main = 0;
+        struct code_block *block = read_block(&is_main);
         if (!block)
             break;
-        create_files(block);
+        create_files(block, is_main);
         printf("----------\n");
         if (jit_data.main) {
             jit_exec();
