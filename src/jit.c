@@ -65,7 +65,7 @@ static void delete_files(struct code_block *block)
     jit_c_system(cmd);
 }
 
-static void create_files(struct code_block *block, int is_main)
+static void create_files(struct code_block *block)
 {
     char name[NAME_MAX_SIZE + 2] = { 0 };
     char cmd[CMD_MAX_SIZE] = { 0 };
@@ -92,7 +92,7 @@ static void create_files(struct code_block *block, int is_main)
         sprintf(cmd, "rm -f %s", name);
         jit_c_system(cmd);
         free(block);
-    } else if (!is_main) {
+    } else if (block != jit_data.main) {
         tmp = jit_data.block;
         jit_data.block = block;
         block->next = tmp;
@@ -117,11 +117,12 @@ static void free_all_files(void)
     }
 }
 
-static struct code_block *read_block(int *is_main)
+static struct code_block *read_block(void)
 {
     char line[LINE_MAX_SIZE] = { 0 };
     struct code_block *block = NULL;
     size_t offset = 0;
+    bool has_main = false;
 
     do {
         printf("> ");
@@ -131,7 +132,7 @@ static struct code_block *read_block(int *is_main)
         if (strncmp(QUIT_CMD, line, sizeof(QUIT_CMD)) == 0)
             return NULL;
         if (strstr(line, "main") != NULL)
-            *is_main = 1;
+            has_main = true;
         strncpy(block_buffer + offset, line, LINE_MAX_SIZE);
         offset += strlen(line);
         WARN_ON(offset >= BLOCK_MAX_SIZE, "read overflow");
@@ -142,7 +143,7 @@ static struct code_block *read_block(int *is_main)
     block->next = NULL;
     jit_data.count++;
 
-    if (*is_main) {
+    if (has_main) {
         if (jit_data.main) {
             delete_files(jit_data.main);
             free(jit_data.main);
@@ -173,11 +174,10 @@ static void jit_exec(void)
 int main(void)
 {
     for (;;) {
-        int is_main = 0;
-        struct code_block *block = read_block(&is_main);
+        struct code_block *block = read_block();
         if (!block)
             break;
-        create_files(block, is_main);
+        create_files(block);
         printf("----------\n");
         if (jit_data.main) {
             jit_exec();
