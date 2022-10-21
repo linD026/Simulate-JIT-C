@@ -91,6 +91,8 @@ static void create_files(struct code_block *block)
     if (ret != 0) {
         sprintf(cmd, "rm -f %s", name);
         jit_c_system(cmd);
+        if (jit_data.main == block)
+            jit_data.main = NULL;
         free(block);
     } else if (block != jit_data.main) {
         tmp = jit_data.block;
