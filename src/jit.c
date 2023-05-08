@@ -21,14 +21,22 @@
     } while (0)
 
 #ifdef PRINT_OUT_CMD
-#define jit_c_system(string)            \
-    ({                                  \
-        printf("[JIT-C] %s\n", string); \
-        system(string);                 \
+#define __jit_c_system(cmd)          \
+    ({                               \
+        printf("[JIT-C] %s\n", cmd); \
+        system(cmd);                 \
     })
 #else
-#define jit_c_system(string) system(string)
+#define __jit_c_system(cmd) system(cmd)
 #endif /* PRINT_OUT_CMD */
+
+#define jit_c_system(fmt, ...)                    \
+    ({                                            \
+        char __jit_c_cmd[CMD_MAX_SIZE] = { 0 };   \
+        sprintf(__jit_c_cmd, fmt, ##__VA_ARGS__); \
+        __jit_c_cmd[CMD_MAX_SIZE - 1] = '\0';     \
+        __jit_c_system(__jit_c_cmd);              \
+    })
 
 #define BLOCK_MAX_SIZE 4096
 #define LINE_MAX_SIZE 256
@@ -56,27 +64,21 @@ static char block_buffer[BLOCK_MAX_SIZE];
 
 static void delete_files(struct code_block *block)
 {
-    char cmd[CMD_MAX_SIZE] = { 0 };
-
     BUG_ON(!block, "block == NULL");
-    sprintf(cmd, "rm -f %s.c", block->name);
-    jit_c_system(cmd);
-    sprintf(cmd, "rm -f %s.o", block->name);
-    jit_c_system(cmd);
+    jit_c_system("rm -f %s.c", block->name);
+    jit_c_system("rm -f %s.o", block->name);
 }
 
 static void create_files(struct code_block *block)
 {
     char name[NAME_MAX_SIZE + 2] = { 0 };
-    char cmd[CMD_MAX_SIZE] = { 0 };
     struct code_block *tmp;
     FILE *file;
     int ret;
 
     BUG_ON(!block, "block == NULL");
     sprintf(name, "%s.c", block->name);
-    sprintf(cmd, "touch %s", name);
-    jit_c_system(cmd);
+    jit_c_system("touch %s", name);
 
     file = fopen(name, "w");
     BUG_ON(!file, "open file failed");
@@ -86,11 +88,9 @@ static void create_files(struct code_block *block)
     memset(block_buffer, '\0', BLOCK_MAX_SIZE);
     fclose(file);
 
-    sprintf(cmd, "gcc -c %s", name);
-    ret = jit_c_system(cmd);
+    ret = jit_c_system("gcc -c %s", name);
     if (ret != 0) {
-        sprintf(cmd, "rm -f %s", name);
-        jit_c_system(cmd);
+        jit_c_system("rm -f %s", name);
         if (jit_data.main == block)
             jit_data.main = NULL;
         free(block);
@@ -104,7 +104,6 @@ static void create_files(struct code_block *block)
 static void free_all_files(void)
 {
     struct code_block *next, *current;
-    char cmd[CMD_MAX_SIZE] = { 0 };
 
     for (next = current = jit_data.block; next; current = next) {
         delete_files(current);
@@ -114,8 +113,7 @@ static void free_all_files(void)
     if (jit_data.main) {
         delete_files(jit_data.main);
         free(jit_data.main);
-        sprintf(cmd, "rm -f %s", EXEC_FILE);
-        jit_c_system(cmd);
+        jit_c_system("rm -f %s", EXEC_FILE);
     }
 }
 
@@ -168,9 +166,8 @@ static void jit_exec(void)
     }
     offset += sprintf(cmd + offset, "%s.o ", jit_data.main->name);
     WARN_ON(offset >= BLOCK_MAX_SIZE, "overflow");
-    jit_c_system(cmd);
-    sprintf(cmd, "./%s", EXEC_FILE);
-    jit_c_system(cmd);
+    __jit_c_system(cmd);
+    jit_c_system("./%s", EXEC_FILE);
 }
 
 int main(void)
